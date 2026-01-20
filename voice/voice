@@ -1,7 +1,7 @@
 #!/bin/bash
 # Voice-to-text using Whisper, with integrations for AI assistants and Emacs
 
-show_help() {
+print_help() {
     cat <<'EOF'
 voice - Voice-to-text using Whisper
 
@@ -13,8 +13,13 @@ OPTIONS:
     -c, --clipboard  Copy transcription to clipboard
     -l, --loop       Continuous mode (Ctrl+G toggles recording, Ctrl+C exits)
 
+CONTROLS:
+    Single-shot: Ctrl+G stop and transcribe, Ctrl+C abort
+    Loop mode:   Ctrl+G toggle recording, Ctrl+C exit
+    Note: loop mode requires a TTY (interactive terminal)
+
 DURATION:
-    Number of seconds to record (optional, default: until Ctrl+C)
+    Number of seconds to record (optional, default: until Ctrl+G)
 
 TARGETS:
     claude    Send to Claude Code
@@ -24,6 +29,8 @@ TARGETS:
     gpt       Send to GPT
     emacs     Insert at point in Emacs (requires server)
     org       Capture as org-mode voice note
+    log       Append to log file (see VOICE_LOG_FILE)
+    stdout    Force stdout output (same as default)
 
 EXAMPLES:
     voice                 Record and print transcription
@@ -36,19 +43,35 @@ EXAMPLES:
 ENVIRONMENT:
     WHISPER_MODEL   Whisper model (default: base)
     WHISPER_LANG    Language code (default: en)
+    VOICE_LOG_FILE  Log file path (default: /tmp/voice.log)
+    VOICE_EMACS_VERBOSE  Show emacsclient output (set to 1)
 
 EOF
+}
+
+show_help() {
+    print_help
     exit 0
+}
+
+usage_error() {
+    echo "Error: $1" >&2
+    print_help >&2
+    exit 1
 }
 
 MODEL="${WHISPER_MODEL:-base}"
 LANG="${WHISPER_LANG:-en}"
+RESULT_FILE="/tmp/voice_result_${$}.txt"
+LOG_FILE="${VOICE_LOG_FILE:-/tmp/voice.log}"
+EMACS_VERBOSE="${VOICE_EMACS_VERBOSE:-0}"
 
 # Parse args
 DURATION=""
 TARGET=""
 CLIPBOARD=false
 LOOP=false
+unknown_args=()
 
 # No arguments: show brief usage
 if [ $# -eq 0 ]; then
@@ -62,14 +85,28 @@ for arg in "$@"; do
         [0-9]*) DURATION="$arg" ;;
         -c|--clipboard) CLIPBOARD=true ;;
         -l|--loop) LOOP=true ;;
-        claude|codex|gemini|aider|gpt|emacs|org) TARGET="$arg" ;;
+        claude|codex|gemini|aider|gpt|emacs|org|log|stdout) TARGET="$arg" ;;
+        *) unknown_args+=("$arg") ;;
     esac
 done
+
+if [ ${#unknown_args[@]} -gt 0 ]; then
+    usage_error "Unknown argument(s): ${unknown_args[*]}"
+fi
+
+run_emacsclient() {
+    if [ "$EMACS_VERBOSE" = "1" ]; then
+        emacsclient --eval "$1"
+    else
+        emacsclient --eval "$1" >/dev/null
+    fi
+}
 
 transcribe() {
     local tmpwav="$1"
     local tmptxt="/tmp/voice_$$.txt"
-    rm -f "$tmptxt"
+    local resultfile="$RESULT_FILE"
+    rm -f "$tmptxt" "$resultfile"
 
     # Check if we got any audio
     if [ ! -f "$tmpwav" ] || [ ! -s "$tmpwav" ]; then
@@ -80,8 +117,11 @@ transcribe() {
     whisper "$tmpwav" --model "$MODEL" --language "$LANG" --output_format txt --output_dir /tmp >/dev/null 2>&1
 
     if [ -f "$tmptxt" ]; then
-        grep -v '^\[' "$tmptxt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//'
+        local result
+        result=$(grep -v '^\[' "$tmptxt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//')
         rm -f "$tmpwav" "$tmptxt"
+        echo "$result" > "$resultfile"  # Save for retrieval
+        echo "$result"      # For piping (may be lost after signal)
         return 0
     else
         rm -f "$tmpwav"
@@ -93,14 +133,36 @@ record_and_transcribe() {
     local tmpwav="/tmp/voice_$$.wav"
     rm -f "$tmpwav"
 
-    echo "" >&2
-    echo "🎤 Recording... (Ctrl+C to stop)" >&2
-
-    if [ -n "$DURATION" ]; then
-        rec -r 16000 -c 1 "$tmpwav" trim 0 "$DURATION" 2>/dev/null
-    else
-        rec -r 16000 -c 1 "$tmpwav" 2>/dev/null
+    # Remap Ctrl+G to SIGQUIT for stopping (avoids bash SIGINT special handling)
+    local old_stty=""
+    local stty_enabled=false
+    if [ -t 0 ]; then
+        old_stty=$(stty -g 2>/dev/null)
+        stty quit '^G'
+        stty_enabled=true
     fi
+
+    echo "" >&2
+    echo "🎤 Recording... (Ctrl+G to stop)" >&2
+
+    # Run rec in background
+    if [ -n "$DURATION" ]; then
+        rec -r 16000 -c 1 "$tmpwav" trim 0 "$DURATION" 2>/dev/null &
+    else
+        rec -r 16000 -c 1 "$tmpwav" 2>/dev/null &
+    fi
+    local rec_pid=$!
+
+    # Trap SIGQUIT to stop recording gracefully
+    trap 'kill -INT $rec_pid 2>/dev/null' QUIT
+    while kill -0 $rec_pid 2>/dev/null; do
+        sleep 0.1 2>/dev/null || sleep 1
+    done
+    trap - QUIT
+    if $stty_enabled && [ -n "$old_stty" ]; then
+        stty "$old_stty" 2>/dev/null
+    fi
+    echo "" >&2
 
     transcribe "$tmpwav"
 }
@@ -109,13 +171,15 @@ send_to_target() {
     local text="$1"
     echo ">>> $text" >&2
     case "$TARGET" in
-        claude) ~/.claude/local/claude -p "$text" --no-input ;;
+        claude) ~/.claude/local/claude -p "$text" --print ;;
         codex)  codex "$text" ;;
         gemini) gemini "$text" ;;
         aider)  aider --message "$text" ;;
         gpt)    gpt "$text" ;;
-        emacs)  emacsclient --eval "(insert \"$(printf '%s' "$text" | sed 's/\\/\\\\/g; s/"/\\"/g')\")" >/dev/null ;;
-        org)    emacsclient --eval "(progn (org-capture nil \"v\") (insert \"$(printf '%s' "$text" | sed 's/\\/\\\\/g; s/"/\\"/g')\") (org-capture-finalize))" >/dev/null ;;
+        emacs)  run_emacsclient "(insert \"$(printf '%s' "$text" | sed 's/\\/\\\\/g; s/"/\\"/g')\")" ;;
+        org)    run_emacsclient "(progn (org-capture nil \"v\") (insert \"$(printf '%s' "$text" | sed 's/\\/\\\\/g; s/"/\\"/g')\") (org-capture-finalize))" ;;
+        log)    echo "$text" >> "$LOG_FILE" ;;
+        stdout) echo "$text" ;;
     esac
 }
 
@@ -137,7 +201,15 @@ handle_text() {
 
 # Single-shot mode
 if ! $LOOP; then
+    # Trap SIGQUIT in parent to prevent exit during subshell capture
+    trap '' QUIT
     TEXT=$(record_and_transcribe)
+    trap - QUIT
+    # If stdout capture failed (signal case), read from result file
+    if [ -z "$TEXT" ] && [ -f "$RESULT_FILE" ]; then
+        TEXT=$(cat "$RESULT_FILE")
+        rm -f "$RESULT_FILE"
+    fi
     if [ -z "$TEXT" ]; then
         echo "Transcription failed" >&2
         exit 1
@@ -154,13 +226,17 @@ OLD_STTY=""
 
 cleanup() {
     [ -n "$REC_PID" ] && kill "$REC_PID" 2>/dev/null
-    rm -f "$TMPWAV" "/tmp/voice_$$.txt"
+    rm -f "$TMPWAV" "/tmp/voice_$$.txt" "$RESULT_FILE"
     # Restore terminal settings
     [ -n "$OLD_STTY" ] && stty "$OLD_STTY" 2>/dev/null
 }
 trap cleanup EXIT
 
 # Save terminal settings and remap Ctrl+G to SIGQUIT
+if ! [ -t 0 ]; then
+    echo "Loop mode requires a TTY." >&2
+    exit 1
+fi
 OLD_STTY=$(stty -g)
 stty quit '^G'
 
