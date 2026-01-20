@@ -1,0 +1,32 @@
+#!/bin/bash
+# Simple dictation using Whisper
+# Usage: dictate [seconds]  (default: records until Ctrl+C)
+
+TMPFILE="/tmp/dictation_$$.wav"
+MODEL="${WHISPER_MODEL:-base}"
+
+cleanup() {
+    rm -f "$TMPFILE"
+}
+trap cleanup EXIT
+
+echo "Recording... Press Ctrl+C to stop"
+
+if [ -n "$1" ]; then
+    # Record for specified seconds
+    rec -r 16000 -c 1 "$TMPFILE" trim 0 "$1" 2>/dev/null
+else
+    # Record until Ctrl+C
+    rec -r 16000 -c 1 "$TMPFILE" 2>/dev/null
+fi
+
+echo ""
+echo "Transcribing..."
+whisper "$TMPFILE" --model "$MODEL" --output_format txt --output_dir /tmp 2>/dev/null
+
+# Extract just the text (whisper creates a .txt file)
+TXTFILE="/tmp/dictation_$$.txt"
+if [ -f "$TXTFILE" ]; then
+    cat "$TXTFILE"
+    rm -f "$TXTFILE"
+fi

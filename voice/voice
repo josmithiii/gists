@@ -1,0 +1,202 @@
+#!/bin/bash
+# Voice-to-text using Whisper, with integrations for AI assistants and Emacs
+
+show_help() {
+    cat <<'EOF'
+voice - Voice-to-text using Whisper
+
+USAGE:
+    voice [OPTIONS] [DURATION] [TARGET]
+
+OPTIONS:
+    -h, --help       Show this help message
+    -c, --clipboard  Copy transcription to clipboard
+    -l, --loop       Continuous mode (Ctrl+G toggles recording, Ctrl+C exits)
+
+DURATION:
+    Number of seconds to record (optional, default: until Ctrl+C)
+
+TARGETS:
+    claude    Send to Claude Code
+    codex     Send to Codex
+    gemini    Send to Gemini
+    aider     Send to Aider
+    gpt       Send to GPT
+    emacs     Insert at point in Emacs (requires server)
+    org       Capture as org-mode voice note
+
+EXAMPLES:
+    voice                 Record and print transcription
+    voice -c              Record and copy to clipboard
+    voice 10              Record 10 seconds, print transcription
+    voice claude          Record and send to Claude Code
+    voice -l -c           Loop mode: Ctrl+G to record, copies to clipboard
+    voice -l emacs        Loop mode: insert each recording into Emacs
+
+ENVIRONMENT:
+    WHISPER_MODEL   Whisper model (default: base)
+    WHISPER_LANG    Language code (default: en)
+
+EOF
+    exit 0
+}
+
+MODEL="${WHISPER_MODEL:-base}"
+LANG="${WHISPER_LANG:-en}"
+
+# Parse args
+DURATION=""
+TARGET=""
+CLIPBOARD=false
+LOOP=false
+
+# No arguments: show brief usage
+if [ $# -eq 0 ]; then
+    echo "voice - Voice-to-text using Whisper. Use --help for options." >&2
+    echo "" >&2
+fi
+
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help) show_help ;;
+        [0-9]*) DURATION="$arg" ;;
+        -c|--clipboard) CLIPBOARD=true ;;
+        -l|--loop) LOOP=true ;;
+        claude|codex|gemini|aider|gpt|emacs|org) TARGET="$arg" ;;
+    esac
+done
+
+transcribe() {
+    local tmpwav="$1"
+    local tmptxt="/tmp/voice_$$.txt"
+    rm -f "$tmptxt"
+
+    # Check if we got any audio
+    if [ ! -f "$tmpwav" ] || [ ! -s "$tmpwav" ]; then
+        return 1
+    fi
+
+    echo "Transcribing..." >&2
+    whisper "$tmpwav" --model "$MODEL" --language "$LANG" --output_format txt --output_dir /tmp >/dev/null 2>&1
+
+    if [ -f "$tmptxt" ]; then
+        grep -v '^\[' "$tmptxt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//'
+        rm -f "$tmpwav" "$tmptxt"
+        return 0
+    else
+        rm -f "$tmpwav"
+        return 1
+    fi
+}
+
+record_and_transcribe() {
+    local tmpwav="/tmp/voice_$$.wav"
+    rm -f "$tmpwav"
+
+    echo "" >&2
+    echo "🎤 Recording... (Ctrl+C to stop)" >&2
+
+    if [ -n "$DURATION" ]; then
+        rec -r 16000 -c 1 "$tmpwav" trim 0 "$DURATION" 2>/dev/null
+    else
+        rec -r 16000 -c 1 "$tmpwav" 2>/dev/null
+    fi
+
+    transcribe "$tmpwav"
+}
+
+send_to_target() {
+    local text="$1"
+    echo ">>> $text" >&2
+    case "$TARGET" in
+        claude) ~/.claude/local/claude -p "$text" --no-input ;;
+        codex)  codex "$text" ;;
+        gemini) gemini "$text" ;;
+        aider)  aider --message "$text" ;;
+        gpt)    gpt "$text" ;;
+        emacs)  emacsclient --eval "(insert \"$(printf '%s' "$text" | sed 's/\\/\\\\/g; s/"/\\"/g')\")" >/dev/null ;;
+        org)    emacsclient --eval "(progn (org-capture nil \"v\") (insert \"$(printf '%s' "$text" | sed 's/\\/\\\\/g; s/"/\\"/g')\") (org-capture-finalize))" >/dev/null ;;
+    esac
+}
+
+handle_text() {
+    local TEXT="$1"
+    if [ -z "$TEXT" ]; then
+        return
+    fi
+
+    if $CLIPBOARD; then
+        echo "$TEXT" | pbcopy
+        echo "Copied: $TEXT" >&2
+    elif [ -n "$TARGET" ]; then
+        send_to_target "$TEXT"
+    else
+        echo "$TEXT"
+    fi
+}
+
+# Single-shot mode
+if ! $LOOP; then
+    TEXT=$(record_and_transcribe)
+    if [ -z "$TEXT" ]; then
+        echo "Transcription failed" >&2
+        exit 1
+    fi
+    handle_text "$TEXT"
+    exit 0
+fi
+
+# Loop mode with Ctrl+G toggle
+TMPWAV="/tmp/voice_$$.wav"
+REC_PID=""
+RECORDING=false
+OLD_STTY=""
+
+cleanup() {
+    [ -n "$REC_PID" ] && kill "$REC_PID" 2>/dev/null
+    rm -f "$TMPWAV" "/tmp/voice_$$.txt"
+    # Restore terminal settings
+    [ -n "$OLD_STTY" ] && stty "$OLD_STTY" 2>/dev/null
+}
+trap cleanup EXIT
+
+# Save terminal settings and remap Ctrl+G to SIGQUIT
+OLD_STTY=$(stty -g)
+stty quit '^G'
+
+echo "Voice loop mode. Ctrl+G to start/stop recording, Ctrl+C to exit." >&2
+echo "" >&2
+echo "⏸  Ready. Press Ctrl+G to start recording..." >&2
+
+toggle_recording() {
+    if $RECORDING; then
+        # Stop recording
+        RECORDING=false
+        if [ -n "$REC_PID" ]; then
+            kill "$REC_PID" 2>/dev/null
+            wait "$REC_PID" 2>/dev/null
+            REC_PID=""
+        fi
+        # Transcribe and handle
+        TEXT=$(transcribe "$TMPWAV")
+        handle_text "$TEXT"
+        echo "" >&2
+        echo "⏸  Ready. Press Ctrl+G to start recording..." >&2
+    else
+        # Start recording
+        RECORDING=true
+        rm -f "$TMPWAV"
+        echo "" >&2
+        echo "🎤 Recording... (Ctrl+G to stop)" >&2
+        rec -r 16000 -c 1 "$TMPWAV" 2>/dev/null &
+        REC_PID=$!
+    fi
+}
+
+trap toggle_recording QUIT
+trap 'echo ""; echo "Goodbye!" >&2; exit 0' INT
+
+# Wait forever, signals do the work
+while true; do
+    sleep 1
+done

@@ -1,0 +1,116 @@
+#!/bin/bash
+# Voice input for AI coding assistants
+# Usage:
+#   voice                    - transcribe and print (for piping)
+#   voice claude             - send to Claude Code (single turn)
+#   voice -l claude          - continuous voice conversation (loop mode)
+#   voice codex              - send to Codex
+#   voice gemini             - send to Gemini
+#   voice -c                 - copy to clipboard
+#   voice 10                 - record for 10 seconds
+#   voice 10 claude          - record 10 sec, send to Claude
+#
+# In loop mode: Ctrl+C stops current recording, double Ctrl+C exits
+
+MODEL="${WHISPER_MODEL:-base}"
+LANG="${WHISPER_LANG:-en}"
+
+# Parse args
+DURATION=""
+TARGET=""
+CLIPBOARD=false
+LOOP=false
+
+for arg in "$@"; do
+    case "$arg" in
+        [0-9]*) DURATION="$arg" ;;
+        -c|--clipboard) CLIPBOARD=true ;;
+        -l|--loop) LOOP=true ;;
+        claude|codex|gemini|aider|gpt) TARGET="$arg" ;;
+    esac
+done
+
+record_and_transcribe() {
+    local tmpwav="/tmp/voice_$$.wav"
+    local tmptxt="/tmp/voice_$$.txt"
+    rm -f "$tmpwav" "$tmptxt"
+
+    echo "" >&2
+    echo "🎤 Recording... (Ctrl+C to stop)" >&2
+
+    if [ -n "$DURATION" ]; then
+        rec -r 16000 -c 1 "$tmpwav" trim 0 "$DURATION" 2>/dev/null
+    else
+        rec -r 16000 -c 1 "$tmpwav" 2>/dev/null
+    fi
+
+    # Check if we got any audio
+    if [ ! -f "$tmpwav" ] || [ ! -s "$tmpwav" ]; then
+        return 1
+    fi
+
+    echo "Transcribing..." >&2
+    whisper "$tmpwav" --model "$MODEL" --language "$LANG" --output_format txt --output_dir /tmp >/dev/null 2>&1
+
+    if [ -f "$tmptxt" ]; then
+        grep -v '^\[' "$tmptxt" | tr '\n' ' ' | sed 's/  */ /g; s/^ //; s/ $//'
+        rm -f "$tmpwav" "$tmptxt"
+        return 0
+    else
+        rm -f "$tmpwav"
+        return 1
+    fi
+}
+
+send_to_target() {
+    local text="$1"
+    echo ">>> $text" >&2
+    case "$TARGET" in
+        claude) ~/.claude/local/claude -p "$text" --no-input ;;
+        codex)  codex "$text" ;;
+        gemini) gemini "$text" ;;
+        aider)  aider --message "$text" ;;
+        gpt)    gpt "$text" ;;
+    esac
+}
+
+# Single-shot mode
+if ! $LOOP; then
+    TEXT=$(record_and_transcribe)
+    if [ -z "$TEXT" ]; then
+        echo "Transcription failed" >&2
+        exit 1
+    fi
+
+    if $CLIPBOARD; then
+        echo "$TEXT" | pbcopy
+        echo "Copied to clipboard: $TEXT" >&2
+    elif [ -n "$TARGET" ]; then
+        send_to_target "$TEXT"
+    else
+        echo "$TEXT"
+    fi
+    exit 0
+fi
+
+# Loop mode - continuous conversation
+echo "Voice loop mode. Double Ctrl+C to exit." >&2
+
+EXIT_COUNT=0
+trap 'EXIT_COUNT=$((EXIT_COUNT + 1)); if [ $EXIT_COUNT -ge 2 ]; then echo ""; echo "Goodbye!" >&2; exit 0; fi' INT
+
+while true; do
+    EXIT_COUNT=0  # Reset after each successful recording
+    TEXT=$(record_and_transcribe)
+
+    if [ -n "$TEXT" ]; then
+        if $CLIPBOARD; then
+            echo "$TEXT" | pbcopy
+            echo "Copied: $TEXT" >&2
+        elif [ -n "$TARGET" ]; then
+            send_to_target "$TEXT"
+        else
+            echo "$TEXT"
+        fi
+    fi
+done

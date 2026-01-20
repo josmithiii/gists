@@ -1,0 +1,67 @@
+#!/bin/bash
+# Voice input for AI coding assistants
+# Usage:
+#   voice                    - transcribe and print (for piping)
+#   voice claude             - send to Claude Code
+#   voice codex              - send to Codex
+#   voice gemini             - send to Gemini
+#   voice -c                 - copy to clipboard
+#   voice 10                 - record for 10 seconds
+#   voice 10 claude          - record 10 sec, send to Claude
+
+TMPFILE="/tmp/voice_$$.wav"
+MODEL="${WHISPER_MODEL:-base}"
+
+cleanup() {
+    rm -f "$TMPFILE" "/tmp/voice_$$.txt"
+}
+trap cleanup EXIT
+
+# Parse args
+DURATION=""
+TARGET=""
+CLIPBOARD=false
+
+for arg in "$@"; do
+    case "$arg" in
+        [0-9]*) DURATION="$arg" ;;
+        -c|--clipboard) CLIPBOARD=true ;;
+        claude|codex|gemini|aider|gpt) TARGET="$arg" ;;
+    esac
+done
+
+echo "Recording... Press Ctrl+C to stop" >&2
+
+if [ -n "$DURATION" ]; then
+    rec -r 16000 -c 1 "$TMPFILE" trim 0 "$DURATION" 2>/dev/null
+else
+    rec -r 16000 -c 1 "$TMPFILE" 2>/dev/null
+fi
+
+echo "Transcribing..." >&2
+whisper "$TMPFILE" --model "$MODEL" --output_format txt --output_dir /tmp 2>/dev/null
+
+TXTFILE="/tmp/voice_$$.txt"
+if [ ! -f "$TXTFILE" ]; then
+    echo "Transcription failed" >&2
+    exit 1
+fi
+
+TEXT=$(cat "$TXTFILE")
+
+if $CLIPBOARD; then
+    echo "$TEXT" | pbcopy
+    echo "Copied to clipboard: $TEXT" >&2
+elif [ -n "$TARGET" ]; then
+    echo "Sending to $TARGET: $TEXT" >&2
+    case "$TARGET" in
+        claude) echo "$TEXT" | ~/.claude/local/claude ;;
+        codex)  codex "$TEXT" ;;
+        gemini) echo "$TEXT" | gemini ;;
+        aider)  echo "$TEXT" | aider ;;
+        gpt)    echo "$TEXT" | gpt ;;
+    esac
+else
+    # Just print for piping
+    echo "$TEXT"
+fi
