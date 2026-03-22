@@ -95,10 +95,12 @@ if [ ${#unknown_args[@]} -gt 0 ]; then
 fi
 
 run_emacsclient() {
+    local sock_args=()
+    [ -n "$EMACS_SOCKET_NAME" ] && sock_args=(-s "$EMACS_SOCKET_NAME")
     if [ "$EMACS_VERBOSE" = "1" ]; then
-        emacsclient --eval "$1"
+        emacsclient "${sock_args[@]}" --eval "$1"
     else
-        emacsclient --eval "$1" >/dev/null
+        emacsclient "${sock_args[@]}" --eval "$1" >/dev/null
     fi
 }
 
@@ -190,7 +192,7 @@ handle_text() {
     fi
 
     if $CLIPBOARD; then
-        echo "$TEXT" | pbcopy
+        printf '%s' "$TEXT" | pbcopy
         echo "Copied: $TEXT" >&2
     elif [ -n "$TARGET" ]; then
         send_to_target "$TEXT"
