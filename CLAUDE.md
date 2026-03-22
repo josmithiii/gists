@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a collection of standalone gists/utilities. Currently contains `voice/` - a voice-to-text transcription tool using OpenAI Whisper.
+This is a meta-project that tracks all of JOS's GitHub gists. Each subdirectory (e.g., `voice/`) is a standalone mini-project with its own purpose. The `sync-gists.sh` script pushes local files to their corresponding GitHub gists via `gh gist edit`. New gists should be added as subdirectories here and registered in `sync-gists.sh`.
 
 ## voice/ - Voice Transcription Utility
 
