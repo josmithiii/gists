@@ -4,6 +4,14 @@ A collection of standalone utilities and scripts.
 
 ## Contents
 
+### statusline/
+
+Claude Code custom status line showing model name, percentage of the 1M
+context window used (color-coded), exact token counts, session ID, and a
+`user@host:dir (branch)` prefix.
+
+**Gist:** https://gist.github.com/josmithiii/72bb219437e881521e72028bf01bb99a
+
 ### voice/
 
 Voice-to-text transcription using OpenAI Whisper, with integrations for AI coding assistants and Emacs.
