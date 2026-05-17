@@ -2,14 +2,14 @@
 
 A custom status line for [Claude Code](https://claude.com/claude-code) that
 shows the model name, percentage of the 1M-token context window consumed
-(color-coded green/yellow/red), exact token counts, weekly rate-limit usage
-(Pro/Max plans), the session ID, plus the familiar `user@host:dir (branch)`
-prefix.
+(color-coded green/yellow/red), exact token counts, 5-hour-session and
+weekly rate-limit usage (Pro/Max plans), the session ID, plus the familiar
+`user@host:dir (branch)` prefix.
 
 Example output:
 
 ```
-jos@laptop:myproj (master) Opus 4.7 (1M context) | context used 12.3% - (123,456/1,000,000) | weekly 43% (3.0d)
+jos@laptop:myproj (master) Opus 4.7 (1M context) | context used 12.3% - (123,456/1,000,000) | 5h 18% (2.4h) | weekly 43% (3.0d)
 session: 0f3c…
 ```
 
@@ -48,10 +48,11 @@ session: 0f3c…
   sidechains, synthetic messages, API errors, and "no response requested"
   turns), and reports `input + output + cache_read + cache_creation` as
   a percentage of the 1M-token window.
-- Weekly usage is read straight from the `rate_limits.seven_day` block
-  that Claude Code pipes into the status line on stdin. The field only
-  appears for Claude.ai Pro/Max subscribers, and only after the session's
-  first API response — before then the segment is silently omitted.
+- 5-hour-session and weekly usage are read straight from the
+  `rate_limits.five_hour` and `rate_limits.seven_day` blocks that Claude
+  Code pipes into the status line on stdin. The fields only appear for
+  Claude.ai Pro/Max subscribers, and only after the session's first API
+  response — before then each segment is silently omitted.
   See: <https://code.claude.com/docs/en/statusline.md#rate-limit-usage>
 
 ## Tweaks

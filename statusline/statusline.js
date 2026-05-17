@@ -116,27 +116,33 @@ function newestMainUsageByTimestamp() {
   return latestUsage;
 }
 
-// --- weekly rate-limit label (Pro/Max; appears after first API response) ---
-function weeklyLabel() {
-  const wk = input?.rate_limits?.seven_day;
-  const p = Number(wk?.used_percentage);
+// --- rate-limit labels (Pro/Max; appear after first API response) ---
+function rateLimitLabel(window, name) {
+  const p = Number(window?.used_percentage);
   if (!Number.isFinite(p)) return "";
   let suffix = "";
-  const resetsAt = Number(wk?.resets_at);
+  const resetsAt = Number(window?.resets_at);
   if (Number.isFinite(resetsAt)) {
     const hrs = (resetsAt * 1000 - Date.now()) / 3_600_000;
     if (hrs > 0) {
       suffix = hrs >= 24 ? ` (${(hrs / 24).toFixed(1)}d)` : ` (${hrs.toFixed(1)}h)`;
     }
   }
-  return ` | ${color(p)}weekly ${p.toFixed(0)}%${suffix}\x1b[0m`;
+  return ` | ${color(p)}${name} ${p.toFixed(0)}%${suffix}\x1b[0m`;
+}
+
+function rateLimitLabels() {
+  return (
+    rateLimitLabel(input?.rate_limits?.five_hour, "5h") +
+    rateLimitLabel(input?.rate_limits?.seven_day, "weekly")
+  );
 }
 
 // --- compute/print ---
 const usage = newestMainUsageByTimestamp();
 if (!usage) {
   console.log(
-    `${name} | \x1b[36mcontext window usage starts after your first question.\x1b[0m${weeklyLabel()}\nsession: ${sessionId}`
+    `${name} | \x1b[36mcontext window usage starts after your first question.\x1b[0m${rateLimitLabels()}\nsession: ${sessionId}`
   );
   process.exit(0);
 }
@@ -150,5 +156,5 @@ const usageCountLabel = `\x1b[33m(${comma(used)}/${comma(
 )})\x1b[0m`;
 
 console.log(
-  `${name} | ${usagePercentLabel} - ${usageCountLabel}${weeklyLabel()}\nsession: ${sessionId}`
+  `${name} | ${usagePercentLabel} - ${usageCountLabel}${rateLimitLabels()}\nsession: ${sessionId}`
 );
