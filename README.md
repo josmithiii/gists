@@ -4,7 +4,7 @@ A collection of standalone utilities and scripts.
 
 ## Contents
 
-### statusline/
+### claude-statusline/
 
 Claude Code custom status line showing model name, percentage of the 1M
 context window used (color-coded), exact token counts, session ID, and a
