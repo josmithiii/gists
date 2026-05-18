@@ -10,6 +10,12 @@ Claude Code custom status line showing model name, percentage of the 1M
 context window used (color-coded), exact token counts, session ID, and a
 `user@host:dir (branch)` prefix.
 
+```
+jos@laptop:myproj (main) Opus 4.7 | context used 3.6% - (36,180/1,000,000) | 5h 13% (2.3h) | weekly 12% (3.7d)
+```
+
+![status line screenshot](claude-statusline/statusline.png)
+
 **Gist:** https://gist.github.com/josmithiii/72bb219437e881521e72028bf01bb99a
 
 ### voice/

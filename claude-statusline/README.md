@@ -9,9 +9,13 @@ weekly rate-limit usage (Pro/Max plans), the session ID, plus the familiar
 Example output:
 
 ```
-jos@laptop:myproj (master) Opus 4.7 (1M context) | context used 12.3% - (123,456/1,000,000) | 5h 18% (2.4h) | weekly 43% (3.0d)
-session: 0f3c…
+jos@laptop:myproj (main) Opus 4.7 | context used 3.6% - (36,180/1,000,000) | 5h 13% (2.3h) | weekly 12% (3.7d)
 ```
+
+Rendered (the `user@host:project` prefix comes from the wrapper; everything
+from `(main)` onward is shown in the screenshot below):
+
+![status line screenshot](statusline.png)
 
 ## Install
 
