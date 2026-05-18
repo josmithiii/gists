@@ -15,7 +15,7 @@ jos@laptop:myproj (main) Opus 4.7 | context used 3.6% - (36,180/1,000,000) | 5h 
 Rendered (the `user@host:project` prefix comes from the wrapper; everything
 from `(main)` onward is shown in the screenshot below):
 
-![status line screenshot](statusline.png)
+![status line screenshot](https://raw.githubusercontent.com/josmithiii/gists/main/claude-statusline/statusline.png)
 
 ## Install
 
