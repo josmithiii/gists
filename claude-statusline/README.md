@@ -1,4 +1,4 @@
-# Claude Code status line — context usage
+# Claude Code status line -- context and plan usage
 
 A custom status line for [Claude Code](https://claude.com/claude-code) that
 shows the model name, percentage of the 1M-token context window consumed
@@ -40,11 +40,11 @@ from `(main)` onward is shown in the screenshot below):
    }
    ```
 
-3. Start a new Claude Code session — the bar appears at the bottom.
+3. Start a new Claude Code session -- the bar appears at the bottom.
 
 ## How it works
 
-- `statusline-wrapper.js` (a bash script despite the `.js` name — Claude
+- `statusline-wrapper.js` (a bash script despite the `.js` name -- Claude
   Code only cares that it's executable) prepends `user@host:dir (branch)`
   and then pipes the original stdin JSON into `statusline.js`.
 - `statusline.js` walks the session transcript from the tail, finds the
@@ -56,7 +56,7 @@ from `(main)` onward is shown in the screenshot below):
   `rate_limits.five_hour` and `rate_limits.seven_day` blocks that Claude
   Code pipes into the status line on stdin. The fields only appear for
   Claude.ai Pro/Max subscribers, and only after the session's first API
-  response — before then each segment is silently omitted.
+  response -- before then each segment is silently omitted.
   See: <https://code.claude.com/docs/en/statusline.md#rate-limit-usage>
 
 ## Tweaks
