@@ -20,6 +20,20 @@ faust -svg file.dsp                             # emit block diagram to audit to
 Fix every error and warning and re-run until clean. If `faust` is not
 installed, say so and mark the code unverified.
 
+## Verify behavior, not just types
+
+Typechecking proves it compiles; it does **not** prove the DSP is correct
+(wrong sign/gain, NaN/Inf, a mistuned loop all typecheck cleanly). For any
+non-trivial DSP, render output samples and inspect them numerically:
+
+```bash
+faust2csvplot file.dsp && ./file -n 1024 > out.csv   # or faust2octave / faust2plot
+# then read the samples back: expected range? no NaN/Inf?
+# right transient and steady-state shape?
+```
+
+The plot window is for the human; the programmatic read-back is the check.
+
 ## FAUST Language Reference
 
 See [primer.md](primer.md) for the complete FAUST language primer
