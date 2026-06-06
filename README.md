@@ -22,7 +22,9 @@ jos@laptop:myproj (main) Opus 4.7 | context used 3.6% - (36,180/1,000,000) | 5h 
 
 ### voice/
 
-Voice-to-text transcription using OpenAI Whisper, with integrations for AI coding assistants and Emacs.
+Voice-to-text transcription using OpenAI Whisper, with integrations
+for AI coding assistants and Emacs - originally used with Claude Code
+before its "hold spacebar to speak" feature.
 
 **Dependencies:** `openai-whisper`, `sox`, `ffmpeg`
 
@@ -67,5 +69,5 @@ offers:
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT -- see [LICENSE](LICENSE).
 
