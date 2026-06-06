@@ -16,6 +16,10 @@ This repo is the canonical copy of each file it tracks. The "live" location wher
 |-------------------------|--------------------|
 | `/w/scripts/voice` (on PATH) | `voice/voice` |
 | `~/.claude/skills/faust` (Claude Code skill) | `faust-skill/skills/faust/` |
+| `~/.claude/statusline.js` | `claude-statusline/statusline.js` |
+| `~/.claude/statusline-wrapper.js` | `claude-statusline/statusline-wrapper.js` |
+
+`~/.claude/settings.json` points `statusLine.command` at `~/.claude/statusline-wrapper.js` (a symlink); Claude Code follows it fine. `claude-statusline/` stays a plain gist rather than a plugin: plugins cannot contribute a main `statusLine` (only `agent` / `subagentStatusLine` settings keys), so it is installed manually or symlinked as above.
 
 To wire up a new one: keep the real file in the repo, then `rm` the live copy and `ln -s <repo-path> <live-path>`.
 
