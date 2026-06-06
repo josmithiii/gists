@@ -2,6 +2,8 @@
 
 A collection of standalone utilities and scripts.
 
+This repo also doubles as a [Claude Code plugin marketplace](#claude-code-plugins).
+
 ## Contents
 
 ### claude-statusline/
@@ -36,6 +38,34 @@ voice -l emacs        # Loop mode, insert into Emacs
 - `WHISPER_MODEL`: tiny/base/small/medium/large (default: base)
 - `WHISPER_LANG`: Language code (default: en)
 
+### faust-skill/
+
+A Claude Code skill that turns Claude into a [FAUST](https://faust.grame.fr/)
+DSP assistant: a distilled language reference plus compile-clean idiomatic
+examples, with a verify-with-the-compiler workflow. See
+[faust-skill/README.md](faust-skill/README.md).
+
+```
+/plugin marketplace add josmithiii/gists
+/plugin install faust@josmithiii-gists
+```
+
+## Claude Code plugins
+
+This repo is also a Claude Code plugin marketplace
+(`.claude-plugin/marketplace.json`). Add it once, then install any plugin it
+offers:
+
+```
+/plugin marketplace add josmithiii/gists
+/plugin install faust@josmithiii-gists
+```
+
+| Plugin | Description |
+|--------|-------------|
+| `faust` | FAUST DSP language reference + idiomatic examples skill ([faust-skill/](faust-skill/)) |
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
+

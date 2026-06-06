@@ -1,0 +1,12 @@
+{
+  "name": "faust",
+  "description": "FAUST DSP language reference and compile-clean idiomatic examples, packaged as a Claude Code skill. Helps Claude write, read, and debug .dsp code and verify it with the FAUST compiler.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Julius O. Smith III",
+    "url": "https://ccrma.stanford.edu/~jos/"
+  },
+  "homepage": "https://github.com/josmithiii/gists/tree/main/faust-skill",
+  "license": "MIT",
+  "keywords": ["faust", "dsp", "audio", "skill"]
+}
