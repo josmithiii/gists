@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "faust",
-      "source": "./faust-skill",
+      "source": "./faust-plugin",
       "description": "FAUST DSP skill: distilled language reference plus compile-clean idiomatic examples for writing, reading, and debugging .dsp code."
     }
   ]

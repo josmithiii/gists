@@ -38,12 +38,12 @@ voice -l emacs        # Loop mode, insert into Emacs
 - `WHISPER_MODEL`: tiny/base/small/medium/large (default: base)
 - `WHISPER_LANG`: Language code (default: en)
 
-### faust-skill/
+### faust-plugin/
 
 A Claude Code skill that turns Claude into a [FAUST](https://faust.grame.fr/)
 DSP assistant: a distilled language reference plus compile-clean idiomatic
 examples, with a verify-with-the-compiler workflow. See
-[faust-skill/README.md](faust-skill/README.md).
+[faust-plugin/README.md](faust-plugin/README.md).
 
 ```
 /plugin marketplace add josmithiii/gists
@@ -63,7 +63,7 @@ offers:
 
 | Plugin | Description |
 |--------|-------------|
-| `faust` | FAUST DSP language reference + idiomatic examples skill ([faust-skill/](faust-skill/)) |
+| `faust` | FAUST DSP language reference + idiomatic examples skill ([faust-plugin/](faust-plugin/)) |
 
 ## License
 

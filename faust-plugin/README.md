@@ -45,7 +45,7 @@ Copy the skill directory into your skills folder:
 
 ```bash
 git clone https://github.com/josmithiii/gists.git /tmp/gists
-cp -r /tmp/gists/faust-skill/skills/faust ~/.claude/skills/faust
+cp -r /tmp/gists/faust-plugin/skills/faust ~/.claude/skills/faust
 ```
 
 ## Related

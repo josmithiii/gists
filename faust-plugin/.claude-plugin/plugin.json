@@ -6,7 +6,7 @@
     "name": "Julius O. Smith III",
     "url": "https://ccrma.stanford.edu/~jos/"
   },
-  "homepage": "https://github.com/josmithiii/gists/tree/main/faust-skill",
+  "homepage": "https://github.com/josmithiii/gists/tree/main/faust-plugin",
   "license": "MIT",
   "keywords": ["faust", "dsp", "audio", "skill"]
 }
