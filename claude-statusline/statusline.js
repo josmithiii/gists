@@ -117,9 +117,11 @@ function newestMainUsageByTimestamp() {
 }
 
 // --- rate-limit labels (Pro/Max; appear after first API response) ---
-function rateLimitLabel(window, name) {
+// Shows the percentage *remaining* (100 - used); color still tracks usage.
+function rateLimitLabel(window, name, sep) {
   const p = Number(window?.used_percentage);
   if (!Number.isFinite(p)) return "";
+  const remaining = 100 - p;
   let suffix = "";
   const resetsAt = Number(window?.resets_at);
   if (Number.isFinite(resetsAt)) {
@@ -128,13 +130,13 @@ function rateLimitLabel(window, name) {
       suffix = hrs >= 24 ? ` (${(hrs / 24).toFixed(1)}d)` : ` (${hrs.toFixed(1)}h)`;
     }
   }
-  return ` | ${color(p)}${name} ${p.toFixed(0)}%${suffix}\x1b[0m`;
+  return `${sep}${color(p)}${name} ${remaining.toFixed(0)}%${suffix}\x1b[0m`;
 }
 
 function rateLimitLabels() {
   return (
-    rateLimitLabel(input?.rate_limits?.five_hour, "5h") +
-    rateLimitLabel(input?.rate_limits?.seven_day, "weekly")
+    rateLimitLabel(input?.rate_limits?.five_hour, "5h", " - remaining: ") +
+    rateLimitLabel(input?.rate_limits?.seven_day, "weekly", " | ")
   );
 }
 
