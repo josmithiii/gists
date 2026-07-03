@@ -133,10 +133,34 @@ function rateLimitLabel(window, name, sep) {
   return `${sep}${color(p)}${name} ${remaining.toFixed(0)}%${suffix}\x1b[0m`;
 }
 
+// --- Fable sub-limit ---
+// Fable usage is capped at 50% of the overall limit, and the statusline input
+// exposes no Fable-specific bucket -- only the overall five_hour/seven_day
+// used_percentage. So we derive Fable headroom: within a window, Fable stays
+// usable only until overall usage reaches its 50% ceiling. Expressed as a
+// fraction of Fable's own allowance, remaining = max(0, 100 - 2*used). The
+// binding constraint is the tighter (smaller) of whichever windows are present.
+function fableLabel(sep) {
+  const windows = [
+    input?.rate_limits?.five_hour,
+    input?.rate_limits?.seven_day,
+  ];
+  let remaining = Infinity;
+  for (const w of windows) {
+    const p = Number(w?.used_percentage);
+    if (!Number.isFinite(p)) continue;
+    remaining = Math.min(remaining, Math.max(0, 100 - 2 * p));
+  }
+  if (!Number.isFinite(remaining)) return "";
+  const used = 100 - remaining; // color still tracks consumption
+  return `${sep}${color(used)}fable ${remaining.toFixed(0)}%\x1b[0m`;
+}
+
 function rateLimitLabels() {
   return (
     rateLimitLabel(input?.rate_limits?.five_hour, "5h", " - remaining: ") +
-    rateLimitLabel(input?.rate_limits?.seven_day, "weekly", " | ")
+    rateLimitLabel(input?.rate_limits?.seven_day, "weekly", " | ") +
+    fableLabel(" | ")
   );
 }
 
