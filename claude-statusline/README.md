@@ -3,13 +3,13 @@
 A custom status line for [Claude Code](https://claude.com/claude-code) that
 shows the model name, percentage of the 1M-token context window consumed
 (color-coded green/yellow/red), exact token counts, 5-hour-session and
-weekly rate-limit usage (Pro/Max plans), the session ID, plus the familiar
-`user@host:dir (branch)` prefix.
+weekly rate-limit usage (Pro/Max plans), the API-equivalent session cost,
+the session ID, plus the familiar `user@host:dir (branch)` prefix.
 
 Example output:
 
 ```
-jos@laptop:myproj (main) Opus 4.7 | context used 3.6% - (36,180/1,000,000) | 5h 13% (2.3h) | weekly 12% (3.7d)
+jos@laptop:myproj (main) Opus 4.8 | context used 3.6% - (36,180/1,000,000) | 5h 13% (2.3h) | weekly 12% (3.7d) | ~$1.23 if API
 ```
 
 Rendered (the `user@host:project` prefix comes from the wrapper; everything
@@ -58,6 +58,15 @@ from `(main)` onward is shown in the screenshot below):
   Claude.ai Pro/Max subscribers, and only after the session's first API
   response -- before then each segment is silently omitted.
   See: <https://code.claude.com/docs/en/statusline.md#rate-limit-usage>
+- `~$1.23 if API` is the `cost.total_cost_usd` field -- Claude Code's
+  client-side estimate of the current session's spend. It prices tokens at
+  standard per-token API rates with no knowledge of the Max subscription, so
+  read it as "what this session would cost at pay-as-you-go API rates" -- the
+  on-demand bill Max avoids. It is a running dollar total (not a percentage),
+  shown in neutral cyan, so the green/yellow/red usage scale does not apply.
+  It is a client-side estimate and "may differ from your actual bill." Note
+  that Claude Code exposes *no* remaining-credit balance to the status line;
+  this session-cost estimate is the closest available signal.
 
 ## Tweaks
 
