@@ -133,27 +133,24 @@ function rateLimitLabel(window, name, sep) {
   return `${sep}${color(p)}${name} ${remaining.toFixed(0)}%${suffix}\x1b[0m`;
 }
 
-// --- Fable sub-limit ---
-// Fable usage is capped at 50% of the WEEKLY limit, and the statusline input
-// exposes no Fable-specific bucket -- only the overall used_percentage. So we
-// derive Fable headroom from the seven_day window alone: Fable stays usable
-// until weekly usage reaches its 50% ceiling. Expressed as a fraction of
-// Fable's own allowance, remaining = max(0, 100 - 2*used). The five_hour
-// window is deliberately excluded -- Fable is not capped per session, and
-// using it made the label crash to 0% mid-session and rebound after reset.
-function fableLabel(sep) {
-  const p = Number(input?.rate_limits?.seven_day?.used_percentage);
-  if (!Number.isFinite(p)) return "";
-  const remaining = Math.max(0, 100 - 2 * p);
-  const used = 100 - remaining; // color still tracks consumption
-  return `${sep}${color(used)}fable ${remaining.toFixed(0)}%\x1b[0m`;
+// --- session cost ---
+// Claude Code exposes no remaining-credit balance to the status line, only
+// this client-side estimate of the current session's spend (cost.total_cost_usd).
+// It prices tokens at standard per-token API rates with no knowledge of the Max
+// subscription, so it reads as "what this session would cost at pay-as-you-go API
+// rates" -- i.e. the on-demand bill Max avoids. Shown in neutral cyan -- it is a
+// running total, not a percentage, so the usage color scale does not apply.
+function costLabel(sep) {
+  const c = Number(input?.cost?.total_cost_usd);
+  if (!Number.isFinite(c)) return "";
+  return `${sep}\x1b[36m~$${c.toFixed(2)} if API\x1b[0m`;
 }
 
 function rateLimitLabels() {
   return (
     rateLimitLabel(input?.rate_limits?.five_hour, "5h", " - remaining: ") +
     rateLimitLabel(input?.rate_limits?.seven_day, "weekly", " | ") +
-    fableLabel(" | ")
+    costLabel(" | ")
   );
 }
 
