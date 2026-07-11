@@ -2,14 +2,15 @@
 
 A custom status line for [Claude Code](https://claude.com/claude-code) that
 shows the model name, percentage of the 1M-token context window consumed
-(color-coded green/yellow/red), exact token counts, 5-hour-session and
-weekly rate-limit usage (Pro/Max plans), the API-equivalent session cost,
+(color-coded green/yellow/red), exact token counts, the *remaining*
+5-hour-session and weekly rate-limit percentages with time until each
+window resets (Pro/Max plans), the API-equivalent session cost,
 the session ID, plus the familiar `user@host:dir (branch)` prefix.
 
 Example output:
 
 ```
-jos@laptop:myproj (main) Opus 4.8 | context used 3.6% - (36,180/1,000,000) | 5h 13% (2.3h) | weekly 12% (3.7d) | ~$1.23 if API
+jos@laptop:myproj (main) Opus 4.8 | context used 31.9% - (318,911/1,000,000) - remaining: 5h 62% (2.2h) | weekly 69% (5.3d) | ~$12.88 if API
 ```
 
 Rendered (the `user@host:project` prefix comes from the wrapper; everything
@@ -52,11 +53,15 @@ from `(main)` onward is shown in the screenshot below):
   sidechains, synthetic messages, API errors, and "no response requested"
   turns), and reports `input + output + cache_read + cache_creation` as
   a percentage of the 1M-token window.
-- 5-hour-session and weekly usage are read straight from the
-  `rate_limits.five_hour` and `rate_limits.seven_day` blocks that Claude
-  Code pipes into the status line on stdin. The fields only appear for
-  Claude.ai Pro/Max subscribers, and only after the session's first API
-  response -- before then each segment is silently omitted.
+- The `remaining: 5h N% (…h) | weekly N% (…d)` segments are read straight
+  from the `rate_limits.five_hour` and `rate_limits.seven_day` blocks that
+  Claude Code pipes into the status line on stdin. Each shows the percentage
+  *remaining* in that window (100 minus `used_percentage`) followed by the
+  time until the window resets; the green/yellow/red color still tracks
+  usage, so the number turns red as it approaches 0% remaining. The fields
+  only appear for Claude.ai Pro/Max subscribers, and only after the
+  session's first API response -- before then each segment is silently
+  omitted.
   See: <https://code.claude.com/docs/en/statusline.md#rate-limit-usage>
 - `~$1.23 if API` is the `cost.total_cost_usd` field -- Claude Code's
   client-side estimate of the current session's spend. It prices tokens at
