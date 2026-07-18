@@ -109,10 +109,12 @@ messages, cleanly. Features are opt-in flags.
    - **Each TOC row:** `k) <span> · <count> commits · <one-line theme>`. Show a
      breadcrumb path at the top (`root › 2026-06 › week of 06-01`).
 
-   **Outline navigation** (interactive, across turns):
+   **Outline navigation** (interactive, across turns). Every verb has a
+   single-letter alias:
    - `k` (a number) → descend into child `k`
    - `up` / `u` → back to the parent's TOC   ·   `top` / `root` → the top TOC
-   - `next` / `prev` → sibling chunk at this level
+   - `next` / `n` · `prev` / `p` → sibling chunk at this level
+   - `jump k` / `j k` → jump to child/card `k` (a card index inside a leaf)
    - `cards` → force-render this node's commits as cards even if >`L` (warn first
      if it's large); `all` at root = stream the whole tree depth-first
    - `quit` / `q` → stop; print the close footer
@@ -179,7 +181,7 @@ wait. Track your position in the conversation (you remember the last index shown
 - On the user's next message, advance:
   - `next` / `n` / Enter / empty → next card
   - `back` / `b` → previous card
-  - `jump k` → card k
+  - `jump k` / `j k` → card k
   - `quit` / `q` / `done` → stop; print the close footer
 - At the last card, say so and offer `quit` or `jump`.
 
