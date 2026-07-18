@@ -16,6 +16,7 @@ This repo is the canonical copy of each file it tracks. The "live" location wher
 |-------------------------|--------------------|
 | `/w/scripts/voice` (on PATH) | `voice/voice` |
 | `~/.claude/skills/faust` (Claude Code skill) | `faust-plugin/skills/faust/` |
+| `~/.claude/skills/git-replay` (Claude Code skill) | `git-replay-plugin/skills/git-replay/` |
 | `~/.claude/statusline.js` | `claude-statusline/statusline.js` |
 | `~/.claude/statusline-wrapper.js` | `claude-statusline/statusline-wrapper.js` |
 
@@ -26,6 +27,19 @@ To wire up a new one: keep the real file in the repo, then `rm` the live copy an
 ## faust-plugin/ - FAUST DSP Claude Code skill
 
 A skill (`skills/faust/`) packaged as a Claude Code plugin. `primer.md` is the language reference, `examples.md` holds compile-clean idiomatic programs, and `SKILL.md` adds a verify-with-the-compiler workflow. Published via the repo-root marketplace; install with `/plugin marketplace add josmithiii/gists` then `/plugin install faust@josmithiii-gists`. JOS edits it in place — `~/.claude/skills/faust` symlinks here (see above). The companion `faust-to-cpp` skill (JOS's private `jos_dsp` C++ conventions) lives only in `~/.claude/skills/`, not in this repo.
+
+## git-replay-plugin/ - Commit-history replay Claude Code skill
+
+A skill (`skills/git-replay/`) packaged as a Claude Code plugin. `SKILL.md`
+replays a repo's commit messages as a forward-moving story: an overview
+prologue, one full-message card per commit (oldest→newest), and a recursive
+`month → week → day → cards` outline for large histories (leaf = ≤10 commits).
+Supports span units (`1m`, `2w`, `30d`, `20c`), `--step` / `--narrate` / `--stat`,
+and a per-repo `--resume` bookmark written inside the target repo's git dir.
+Published via the repo-root marketplace; install with
+`/plugin marketplace add josmithiii/gists` then
+`/plugin install git-replay@josmithiii-gists`. JOS edits it in place —
+`~/.claude/skills/git-replay` symlinks here (see above).
 
 ## voice/ - Voice Transcription Utility
 

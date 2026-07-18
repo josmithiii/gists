@@ -52,6 +52,19 @@ examples, with a verify-with-the-compiler workflow. See
 /plugin install faust@josmithiii-gists
 ```
 
+### git-replay-plugin/
+
+A Claude Code skill that replays a repo's commit messages as a forward-moving
+story: an overview prologue, one full-message card per commit (oldest→newest),
+and a recursive `month → week → day` outline for large histories. Supports span
+units (`1m`, `2w`, `30d`), `--step` / `--narrate` / `--stat`, and a `--resume`
+bookmark. See [git-replay-plugin/README.md](git-replay-plugin/README.md).
+
+```
+/plugin marketplace add josmithiii/gists
+/plugin install git-replay@josmithiii-gists
+```
+
 ## Claude Code plugins
 
 This repo is also a Claude Code plugin marketplace
@@ -66,6 +79,7 @@ offers:
 | Plugin | Description |
 |--------|-------------|
 | `faust` | FAUST DSP language reference + idiomatic examples skill ([faust-plugin/](faust-plugin/)) |
+| `git-replay` | Replay commit history as a chaptered, forward-moving story ([git-replay-plugin/](git-replay-plugin/)) |
 
 ## License
 

@@ -13,6 +13,11 @@
       "name": "faust",
       "source": "./faust-plugin",
       "description": "FAUST DSP skill: distilled language reference plus compile-clean idiomatic examples for writing, reading, and debugging .dsp code."
+    },
+    {
+      "name": "git-replay",
+      "source": "./git-replay-plugin",
+      "description": "Replay a repo's commit messages as a forward-moving story: an overview prologue, one full-message card per commit, and a recursive day/week/month outline for large histories."
     }
   ]
 }

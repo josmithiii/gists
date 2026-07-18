@@ -1,0 +1,12 @@
+{
+  "name": "git-replay",
+  "description": "Replay a repo's commit messages as a forward-moving story: an overview prologue, one full-message card per commit, and a recursive day/week/month outline for large histories. Packaged as a Claude Code skill.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Julius O. Smith III",
+    "url": "https://ccrma.stanford.edu/~jos/"
+  },
+  "homepage": "https://github.com/josmithiii/gists/tree/main/git-replay-plugin",
+  "license": "MIT",
+  "keywords": ["git", "commits", "history", "changelog", "skill"]
+}
