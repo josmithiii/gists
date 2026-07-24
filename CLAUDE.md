@@ -50,8 +50,11 @@ root** (`git rev-parse --show-toplevel`, date from `date +%F`), using the sectio
 shape of JOS's own handoffs: where things stand -> next task by plan reference ->
 blast radius (re-grep-first snapshot) -> traps already paid for -> invariants
 with their check commands -> plan/memory pointers. It follows each repo's
-existing tracked/untracked precedent (`git ls-files` / `git check-ignore`) and
-never stages or commits. `disable-model-invocation: true` -- user-invoked only.
+existing tracked/untracked precedent (`git check-ignore` first and decisive,
+then `git ls-files`) and never stages or commits. It closes with a "promote
+into `<PLAN|LOG>.md`" checklist, so the durable half (traps, invariants) lands
+in a tracked project file and the handoff itself stays disposable.
+`disable-model-invocation: true` -- user-invoked only.
 Inspired by Matt Pocock's `handoff` skill (mattpocock/skills, MIT); rewritten
 around JOS's conventions. Published via the repo-root marketplace; install with
 `/plugin marketplace add josmithiii/gists` then

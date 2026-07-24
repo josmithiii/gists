@@ -14,9 +14,13 @@ fresh agent can resume from cold -- written to the **repo root**, named
   guessed. An existing name is never overwritten; the topic gets narrowed
   instead.
 - **Follows the repo's tracking precedent.** Some projects track their handoffs,
-  some deliberately do not. The skill checks `git ls-files` / `git check-ignore`
-  and follows what the repo already does. It **never stages or commits** -- if
-  the repo tracks handoffs, it just hands you the `git add` line.
+  some deliberately do not. The skill checks `git check-ignore` first (an ignore
+  rule wins outright) and `git ls-files` second. It **never stages or commits**
+  -- if the repo tracks handoffs, it just hands you the `git add` line.
+- **Promotes the durable half.** The handoff is a staging area, not a parallel
+  archive: "where things stand" is perishable, but the traps and invariants are
+  not. The doc closes with a checklist of which paragraphs to fold into the
+  topic's `*_PLAN.md` / `*_LOG.md` -- after which the handoff is deletable.
 - **A structure built for resumption.** Where things stand (done / committed /
   pushed, with SHAs) -> the next task, by plan reference -> blast radius, marked
   as a re-grep-first snapshot -> **traps already paid for** -> invariants that

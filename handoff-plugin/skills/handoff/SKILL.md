@@ -38,14 +38,18 @@ Some repos track their handoffs, some deliberately do not. **Follow the local
 precedent, and never stage or commit** -- leave that to JOS.
 
 ```bash
+git check-ignore -v HandoffPrompt-<name>.md     # ignored by policy?  CHECK FIRST
 git ls-files 'HandoffPrompt-*.md' | head        # tracked precedent?
-git check-ignore -v HandoffPrompt-<name>.md     # ignored by policy?
 ```
 
-- Existing root handoffs are **tracked** -> say so, and end with the exact
-  `git add <file>` line so JOS can commit it with one paste.
-- Existing handoffs are **untracked**, or the name is gitignored, or there is no
-  precedent -> leave it untracked and say so in one line.
+Decide in this order -- **an ignore rule wins outright**, even when tracked
+handoffs already exist (they are usually just older files predating the rule):
+
+1. The name is **gitignored** -> leave it untracked, say so in one line, and do
+   not offer a `git add`.
+2. Otherwise, existing root handoffs are **tracked** -> say so, and end with the
+   exact `git add <file>` line so JOS can commit it with one paste.
+3. Otherwise (untracked precedent, or none) -> leave it untracked, one line.
 
 ## 3. Sections
 
@@ -95,7 +99,37 @@ Paths to plans, logs, memory files, prior handoffs. Links, not copies.
 - If arguments were given, treat everything after the topic slug as the next
   session's focus and slant the whole document toward it.
 
-## 5. Report back
+## 5. Promote the durable half into the PLAN / LOG
 
-One line: the full path written, whether it is tracked or untracked, and the
-`git add` line if this repo tracks handoffs.
+A handoff is a **staging area, not a parallel archive**. Its sections have two
+different lifetimes:
+
+- **Perishable** -- "where things stand", "next", "blast radius". True for about
+  a day. These stay in the handoff and die with it.
+- **Durable** -- "traps already paid for" and "invariants + their check
+  commands". Still true after the milestone lands, and exactly what a fresh
+  agent cannot rediscover cheaply. These belong in a tracked project file.
+
+So find the file that owns this topic:
+
+```bash
+git ls-files | grep -iE '(PLAN|LOG)[^/]*\.md$'   # e.g. PBASS_CALIBRATION_PLAN.md
+```
+
+Prefer an existing `*_LOG.md` for findings and traps, and the matching
+`*_PLAN.md` for milestone status. Do **not** create a new one unless the topic
+genuinely has no home -- say so instead and name the best candidate.
+
+Then close the handoff with a `## Promote into <path>` section listing, as a
+short checklist, which of its paragraphs should be folded in and where. Do not
+edit the PLAN/LOG in this session -- writing the checklist is the deliverable,
+so JOS can review the wording before it lands in a tracked file.
+
+If the promotion is done later, the handoff itself becomes deletable. Say that
+in one line.
+
+## 6. Report back
+
+One line: the full path written, whether it is tracked or untracked (and why),
+the `git add` line if this repo tracks handoffs, and the PLAN/LOG the durable
+half should be promoted into.
