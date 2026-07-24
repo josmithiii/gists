@@ -1,0 +1,12 @@
+{
+  "name": "handoff",
+  "description": "Compact the current session into a HandoffPrompt-<date>-<Topic>.md at the repo root, so a fresh agent can pick the work up cold. Follows each repo's existing tracked/untracked precedent and never stages or commits.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Julius O. Smith III",
+    "url": "https://ccrma.stanford.edu/~jos/"
+  },
+  "homepage": "https://github.com/josmithiii/gists/tree/main/handoff-plugin",
+  "license": "MIT",
+  "keywords": ["handoff", "context", "session", "skill"]
+}

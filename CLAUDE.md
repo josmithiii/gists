@@ -17,6 +17,7 @@ This repo is the canonical copy of each file it tracks. The "live" location wher
 | `/w/scripts/voice` (on PATH) | `voice/voice` |
 | `~/.claude/skills/faust` (Claude Code skill) | `faust-plugin/skills/faust/` |
 | `~/.claude/skills/git-replay` (Claude Code skill) | `git-replay-plugin/skills/git-replay/` |
+| `~/.claude/skills/handoff` (Claude Code skill) | `handoff-plugin/skills/handoff/` |
 | `~/.claude/statusline.js` | `claude-statusline/statusline.js` |
 | `~/.claude/statusline-wrapper.js` | `claude-statusline/statusline-wrapper.js` |
 
@@ -40,6 +41,28 @@ Published via the repo-root marketplace; install with
 `/plugin marketplace add josmithiii/gists` then
 `/plugin install git-replay@josmithiii-gists`. JOS edits it in place —
 `~/.claude/skills/git-replay` symlinks here (see above).
+
+## handoff-plugin/ - Session-handoff Claude Code skill
+
+A skill (`skills/handoff/`) packaged as a Claude Code plugin. `SKILL.md` compacts
+the current session into `HandoffPrompt-<YYYY-MM-DD>-<Topic>.md` at the **repo
+root** (`git rev-parse --show-toplevel`, date from `date +%F`), using the section
+shape of JOS's own handoffs: where things stand -> next task by plan reference ->
+blast radius (re-grep-first snapshot) -> traps already paid for -> invariants
+with their check commands -> plan/memory pointers. It follows each repo's
+existing tracked/untracked precedent (`git ls-files` / `git check-ignore`) and
+never stages or commits. `disable-model-invocation: true` -- user-invoked only.
+Inspired by Matt Pocock's `handoff` skill (mattpocock/skills, MIT); rewritten
+around JOS's conventions. Published via the repo-root marketplace; install with
+`/plugin marketplace add josmithiii/gists` then
+`/plugin install handoff@josmithiii-gists`. JOS edits it in place --
+`~/.claude/skills/handoff` symlinks here (see above).
+
+Note: `~/.claude/skills/handoff` previously pointed at
+`~/.agents/skills/handoff` (the upstream Matt Pocock copy, installed 2026-06-19
+by `setup-matt-pocock-skills` along with ~35 others). That file is untouched;
+only the symlink was repointed, so reverting is
+`\rm ~/.claude/skills/handoff && ln -s ../../.agents/skills/handoff ~/.claude/skills/handoff`.
 
 ## voice/ - Voice Transcription Utility
 

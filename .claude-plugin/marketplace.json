@@ -18,6 +18,11 @@
       "name": "git-replay",
       "source": "./git-replay-plugin",
       "description": "Replay a repo's commit messages as a forward-moving story: an overview prologue, one full-message card per commit, and a recursive day/week/month outline for large histories."
+    },
+    {
+      "name": "handoff",
+      "source": "./handoff-plugin",
+      "description": "Compact the current session into a HandoffPrompt-<date>-<Topic>.md at the repo root: state, next task, blast radius, traps already paid for, and invariants -- so a fresh agent resumes cold."
     }
   ]
 }
