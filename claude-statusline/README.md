@@ -1,16 +1,16 @@
 # Claude Code status line -- context and plan usage
 
 A custom status line for [Claude Code](https://claude.com/claude-code) that
-shows the model name, percentage of the 1M-token context window consumed
-(color-coded green/yellow/red), exact token counts, the *remaining*
-5-hour-session and weekly rate-limit percentages with time until each
-window resets (Pro/Max plans), the API-equivalent session cost,
+shows the model name and current effort level, percentage of the 1M-token
+context window consumed (color-coded green/yellow/red), exact token counts,
+the *remaining* 5-hour-session and weekly rate-limit percentages with time
+until each window resets (Pro/Max plans), the API-equivalent session cost,
 the session ID, plus the familiar `user@host:dir (branch)` prefix.
 
 Example output:
 
 ```
-jos@laptop:myproj (main) Opus 4.8 | context used 31.9% - (318,911/1,000,000) - remaining: 5h 62% (2.2h) | weekly 69% (5.3d) | ~$12.88 if API
+jos@laptop:myproj (main) Opus 5 xhigh | context used 31.9% - (318,911/1,000,000) - remaining: 5h 62% (2.2h) | weekly 69% (5.3d) | ~$12.88 if API
 ```
 
 Rendered (the `user@host:project` prefix comes from the wrapper; everything
@@ -48,6 +48,12 @@ from `(main)` onward is shown in the screenshot below):
 - `statusline-wrapper.js` (a bash script despite the `.js` name -- Claude
   Code only cares that it's executable) prepends `user@host:dir (branch)`
   and then pipes the original stdin JSON into `statusline.js`.
+- The effort level after the model name (`Opus 5 xhigh`) is the `effort.level`
+  field Claude Code pipes in on stdin -- one of `low`, `medium`, `high`,
+  `xhigh`, tracking `/effort` live. The whole `effort` block is omitted for
+  models that don't support effort levels (Sonnet 4.5, Haiku 4.5, Opus 4.0/4.1,
+  Claude 3.x), and the status line then shows the bare model name. Note that
+  `ultracode` reports as `xhigh`, its underlying effort level.
 - `statusline.js` walks the session transcript from the tail, finds the
   newest main-context assistant message with non-zero usage (skipping
   sidechains, synthetic messages, API errors, and "no response requested"
@@ -77,6 +83,13 @@ from `(main)` onward is shown in the screenshot below):
 
 - Change `CONTEXT_WINDOW` in `statusline.js` if you're on a non-1M model.
 - Adjust the color thresholds (90% red, 70% yellow) in `color()`.
+- Recolor the effort label (bright blue, `\x1b[94m`) or drop it entirely by
+  setting `effort` to `""` near the top of `statusline.js`.
+- Other fields Claude Code puts on stdin but this script ignores:
+  `fast_mode`, `thinking.enabled`, `output_style.name`, `vim.mode`,
+  `agent.name`, `session_name`, `pr`, `worktree`, and a ready-made
+  `context_window` block (`used_percentage`, `remaining_percentage`) that
+  could replace the transcript walk on newer Claude Code versions.
 - Drop the wrapper and point `statusLine.command` straight at
   `statusline.js` if you don't want the user/host/branch prefix.
 

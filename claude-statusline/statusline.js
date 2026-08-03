@@ -8,7 +8,11 @@ const input = readJSON(0); // stdin
 const sessionId = `\x1b[90m${String(input.session_id ?? "")}\x1b[0m`;
 const transcript = input.transcript_path;
 const model = input.model || {};
-const name = `\x1b[95m${String(model.display_name ?? "")}\x1b[0m`.trim();
+// Claude Code sends `effort: { level }` (low | medium | high | xhigh) only for
+// models that support effort levels; the whole block is absent otherwise.
+const effortLevel = String(input.effort?.level ?? "").trim();
+const effort = effortLevel ? ` \x1b[94m${effortLevel}\x1b[0m` : "";
+const name = `\x1b[95m${String(model.display_name ?? "").trim()}\x1b[0m${effort}`;
 const CONTEXT_WINDOW = 1_000_000;
 
 // --- helpers ---
