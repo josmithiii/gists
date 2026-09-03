@@ -6,14 +6,16 @@ const fs = require("fs");
 // --- input ---
 const input = readJSON(0); // stdin
 const sessionId = `\x1b[90m${String(input.session_id ?? "")}\x1b[0m`;
-const transcript = input.transcript_path;
 const model = input.model || {};
-// Claude Code sends `effort: { level }` (low | medium | high | xhigh) only for
-// models that support effort levels; the whole block is absent otherwise.
+// Claude Code sends `effort: { level }` (low | medium | high | xhigh | max)
+// only for models that support effort levels; the block is absent otherwise.
 const effortLevel = String(input.effort?.level ?? "").trim();
 const effort = effortLevel ? ` \x1b[94m${effortLevel}\x1b[0m` : "";
 const name = `\x1b[95m${String(model.display_name ?? "").trim()}\x1b[0m${effort}`;
-const CONTEXT_WINDOW = 1_000_000;
+
+// Printed (in red) wherever Claude Code omitted a field it normally supplies,
+// e.g. rate limits during a usage-service outage -- loud, not silent.
+const UNAVAILABLE = "\x1b[31m<unavailable>\x1b[0m";
 
 // --- helpers ---
 function readJSON(fd) {
@@ -32,6 +34,14 @@ const comma = (n) =>
   new Intl.NumberFormat("en-US").format(
     Math.max(0, Math.floor(Number(n) || 0))
   );
+// 1000000 -> "1M", 200000 -> "200K", 12345 -> "12,345"
+function compact(n) {
+  n = Math.max(0, Math.floor(Number(n) || 0));
+  const trim = (x) => String(Number(x.toFixed(1)));
+  if (n >= 1e6) return `${trim(n / 1e6)}M`;
+  if (n >= 1e3) return `${trim(n / 1e3)}K`;
+  return comma(n);
+}
 
 function usedTotal(u) {
   return (
@@ -42,89 +52,35 @@ function usedTotal(u) {
   );
 }
 
-function syntheticModel(j) {
-  const m = String(j?.message?.model ?? "").toLowerCase();
-  return m === "<synthetic>" || m.includes("synthetic");
-}
-
-function assistantMessage(j) {
-  return j?.message?.role === "assistant";
-}
-
-function subContext(j) {
-  return j?.isSidechain === true;
-}
-
-function contentNoResponse(j) {
-  const c = j?.message?.content;
+// --- context window ---
+// Claude Code supplies `context_window.current_usage` (the usage block of the
+// newest main-context API response) and `context_window_size` directly, so no
+// transcript walk is needed.  Reported as input + output + cache_read +
+// cache_creation, i.e. everything that occupied the window on the last turn.
+function contextLabel() {
+  const cw = input?.context_window;
+  const size = Number(cw?.context_window_size);
+  if (!cw || !Number.isFinite(size) || size <= 0) {
+    return `context ${UNAVAILABLE}`;
+  }
+  const used = usedTotal(cw.current_usage);
+  if (used === 0) {
+    return "\x1b[36mcontext usage starts after your first question.\x1b[0m";
+  }
+  const pct = Math.round((used * 1000) / size) / 10;
   return (
-    Array.isArray(c) &&
-    c.some(
-      (x) =>
-        x &&
-        x.type === "text" &&
-        /no\s+response\s+requested/i.test(String(x.text))
-    )
+    `${color(pct)}context ${pct.toFixed(1)}%\x1b[0m - ` +
+    `\x1b[33m(${comma(used)}/${compact(size)})\x1b[0m`
   );
-}
-
-function parseTs(j) {
-  const t = j?.timestamp;
-  const n = Date.parse(t);
-  return Number.isFinite(n) ? n : -Infinity;
-}
-
-// Find the newest main-context entry by timestamp (not file order)
-function newestMainUsageByTimestamp() {
-  if (!transcript) return null;
-  let latestTs = -Infinity;
-  let latestUsage = null;
-
-  let lines;
-  try {
-    lines = fs.readFileSync(transcript, "utf8").split(/\r?\n/);
-  } catch {
-    return null;
-  }
-
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i].trim();
-    if (!line) continue;
-
-    let j;
-    try {
-      j = JSON.parse(line);
-    } catch {
-      continue;
-    }
-    const u = j.message?.usage;
-    if (
-      subContext(j) ||
-      syntheticModel(j) ||
-      j.isApiErrorMessage === true ||
-      usedTotal(u) === 0 ||
-      contentNoResponse(j) ||
-      !assistantMessage(j)
-    )
-      continue;
-
-    const ts = parseTs(j);
-    if (ts > latestTs) {
-      latestTs = ts;
-      latestUsage = u;
-    }
-    else if (ts == latestTs && usedTotal(u) > usedTotal(latestUsage)) {
-      latestUsage = u;
-    }
-  }
-  return latestUsage;
 }
 
 // --- rate-limit labels (Pro/Max; appear after first API response) ---
 // Shows the percentage *remaining* (100 - used); color still tracks usage.
-function rateLimitLabel(window, name, sep) {
+// `required` windows print <unavailable> when missing; optional ones
+// (spend_limit, only for Claude apps gateway users) are simply omitted.
+function rateLimitLabel(window, label, sep, required) {
   const p = Number(window?.used_percentage);
-  if (!Number.isFinite(p)) return "";
+  if (!Number.isFinite(p)) return required ? `${sep}${label} ${UNAVAILABLE}` : "";
   const remaining = 100 - p;
   let suffix = "";
   const resetsAt = Number(window?.resets_at);
@@ -134,7 +90,7 @@ function rateLimitLabel(window, name, sep) {
       suffix = hrs >= 24 ? ` (${(hrs / 24).toFixed(1)}d)` : ` (${hrs.toFixed(1)}h)`;
     }
   }
-  return `${sep}${color(p)}${name} ${remaining.toFixed(0)}%${suffix}\x1b[0m`;
+  return `${sep}${color(p)}${label} ${remaining.toFixed(0)}%${suffix}\x1b[0m`;
 }
 
 // --- session cost ---
@@ -146,35 +102,19 @@ function rateLimitLabel(window, name, sep) {
 // running total, not a percentage, so the usage color scale does not apply.
 function costLabel(sep) {
   const c = Number(input?.cost?.total_cost_usd);
-  if (!Number.isFinite(c)) return "";
+  if (!Number.isFinite(c)) return `${sep}cost ${UNAVAILABLE}`;
   return `${sep}\x1b[36m~$${c.toFixed(2)} if API\x1b[0m`;
 }
 
 function rateLimitLabels() {
+  const rl = input?.rate_limits;
   return (
-    rateLimitLabel(input?.rate_limits?.five_hour, "5h", " - remaining: ") +
-    rateLimitLabel(input?.rate_limits?.seven_day, "weekly", " | ") +
+    rateLimitLabel(rl?.five_hour, "5h", " - remaining: ", true) +
+    rateLimitLabel(rl?.seven_day, "weekly", " | ", true) +
+    rateLimitLabel(rl?.spend_limit, "spend", " | ", false) +
     costLabel(" | ")
   );
 }
 
-// --- compute/print ---
-const usage = newestMainUsageByTimestamp();
-if (!usage) {
-  console.log(
-    `${name} | \x1b[36mcontext window usage starts after your first question.\x1b[0m${rateLimitLabels()}\nsession: ${sessionId}`
-  );
-  process.exit(0);
-}
-
-const used = usedTotal(usage);
-const pct = CONTEXT_WINDOW > 0 ? Math.round((used * 1000) / CONTEXT_WINDOW) / 10 : 0;
-
-const usagePercentLabel = `${color(pct)}context used ${pct.toFixed(1)}%\x1b[0m`;
-const usageCountLabel = `\x1b[33m(${comma(used)}/${comma(
-  CONTEXT_WINDOW
-)})\x1b[0m`;
-
-console.log(
-  `${name} | ${usagePercentLabel} - ${usageCountLabel}${rateLimitLabels()}\nsession: ${sessionId}`
-);
+// --- print ---
+console.log(`${name} | ${contextLabel()}${rateLimitLabels()}\nsession: ${sessionId}`);
