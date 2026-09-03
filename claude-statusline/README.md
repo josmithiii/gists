@@ -13,9 +13,8 @@ Example output:
 jos@laptop:myproj (main) Fable 5.1 high | context 31.9% - (318,911/1M) - remaining: 5h 62% (2.2h) | weekly 69% (5.3d) | ~$12.88 if API
 ```
 
-Rendered (the `user@host:project` prefix comes from the wrapper; everything
-from `(main)` onward is shown in the screenshot below, which predates the
-shorter `context N%` / `1M` labels):
+Rendered (the `user@host:project (branch)` prefix comes from the wrapper;
+everything from the model name onward is shown in the screenshot below):
 
 ![status line screenshot](https://raw.githubusercontent.com/josmithiii/gists/main/claude-statusline/statusline.png)
 
