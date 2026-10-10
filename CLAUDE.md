@@ -67,6 +67,21 @@ by `setup-matt-pocock-skills` along with ~35 others). That file is untouched;
 only the symlink was repointed, so reverting is
 `\rm ~/.claude/skills/handoff && ln -s ../../.agents/skills/handoff ~/.claude/skills/handoff`.
 
+## askme-plugin/ - Open-decisions Claude Code skill
+
+A skill (`skills/askme/`) packaged as a Claude Code plugin. `SKILL.md` reads
+back through the session for decisions that were deferred, assumed, forked,
+left out, or built-but-unseen, asks the user the (at most four) that change
+the next step via `AskUserQuestion`, then acts on the answers and records each
+ruling where the project keeps rulings. Generalized from Nick Porcaro's
+moForte `askme` skill (`plugins/moforte/skills/askme/` in the private moForte
+repo), which addresses Nick by name. Published via the repo-root marketplace;
+install with `/plugin marketplace add josmithiii/gists` then
+`/plugin install askme@josmithiii-gists`. NOT symlinked into
+`~/.claude/skills/askme` on JOS's machine: JOS already has `moforte:askme`
+from the moForte plugin, and two skills named askme would both trigger on
+"/askme".
+
 ## voice/ - Voice Transcription Utility
 
 A bash script for voice-to-text using Whisper with integrations for AI coding assistants (Claude Code, Codex, Gemini, Aider, GPT) and Emacs.

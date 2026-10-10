@@ -65,6 +65,29 @@ bookmark. See [git-replay-plugin/README.md](git-replay-plugin/README.md).
 /plugin install git-replay@josmithiii-gists
 ```
 
+### handoff-plugin/
+
+A Claude Code skill that compacts the current session into a dated
+`HandoffPrompt-<date>-<Topic>.md` at the repo root, so a fresh agent can pick
+the work up cold. See [handoff-plugin/README.md](handoff-plugin/README.md).
+
+```
+/plugin marketplace add josmithiii/gists
+/plugin install handoff@josmithiii-gists
+```
+
+### askme-plugin/
+
+A Claude Code skill that finds the decisions a session deferred, assumed, or
+left open, asks you the ones that are yours to make as multiple-choice
+questions, then acts on your answers. See
+[askme-plugin/README.md](askme-plugin/README.md).
+
+```
+/plugin marketplace add josmithiii/gists
+/plugin install askme@josmithiii-gists
+```
+
 ## Claude Code plugins
 
 This repo is also a Claude Code plugin marketplace
@@ -80,6 +103,8 @@ offers:
 |--------|-------------|
 | `faust` | FAUST DSP language reference + idiomatic examples skill ([faust-plugin/](faust-plugin/)) |
 | `git-replay` | Replay commit history as a chaptered, forward-moving story ([git-replay-plugin/](git-replay-plugin/)) |
+| `handoff` | Compact the session into a dated handoff doc at the repo root ([handoff-plugin/](handoff-plugin/)) |
+| `askme` | Ask the session's open decisions as multiple-choice questions, then act on the answers ([askme-plugin/](askme-plugin/)) |
 
 ## License
 

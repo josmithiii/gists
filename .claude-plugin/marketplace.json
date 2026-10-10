@@ -23,6 +23,11 @@
       "name": "handoff",
       "source": "./handoff-plugin",
       "description": "Compact the current session into a HandoffPrompt-<date>-<Topic>.md at the repo root: state, next task, blast radius, traps already paid for, and invariants -- so a fresh agent resumes cold."
+    },
+    {
+      "name": "askme",
+      "source": "./askme-plugin",
+      "description": "Find the decisions a session deferred, assumed, or left open, put the ones that are yours to make as multiple-choice questions, then act on your answers."
     }
   ]
 }

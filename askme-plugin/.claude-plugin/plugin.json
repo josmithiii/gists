@@ -1,0 +1,12 @@
+{
+  "name": "askme",
+  "description": "Find the decisions a session deferred, assumed, or left open, put the ones that are yours to make as multiple-choice questions, then act on your answers.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Julius O. Smith III",
+    "url": "https://ccrma.stanford.edu/~jos/"
+  },
+  "homepage": "https://github.com/josmithiii/gists/tree/main/askme-plugin",
+  "license": "MIT",
+  "keywords": ["askme", "decisions", "questions", "session", "skill"]
+}
