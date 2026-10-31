@@ -74,7 +74,13 @@ command on stdin (documented at
   `/compact` it reads `context updates after the next response.`
 - `Cached` / `Uncached` is `prompt_cache.warm`: whether the cached prefix is
   still within its TTL. Claude Code re-runs the status line when a warm cache
-  expires, so it flips to `Uncached` while the session is idle.
+  expires, so it flips to `Uncached` while the session is idle. The block is
+  absent after `--continue` or `--resume` until the first response, even
+  though the cache outlives the process, so the script keeps each session's
+  `expires_at` in `~/.claude/statusline-cache.json` (self-pruning) and shows
+  `Cached` across the restart. That is a prediction from the saved expiry: a
+  resumed session sitting idle past it keeps showing `Cached` until the next
+  update, and a changed system prompt or tool list still misses.
 - The `remaining: 5h N% (…h) | weekly N% (…d)` segments are read from the
   `rate_limits.five_hour` and `rate_limits.seven_day` blocks. Each shows the
   percentage *remaining* in that window (100 minus `used_percentage`)

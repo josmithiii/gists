@@ -2,6 +2,8 @@
 "use strict";
 
 const fs = require("fs");
+const os = require("os");
+const path = require("path");
 
 // --- input ---
 const input = readJSON(0); // stdin
@@ -80,10 +82,32 @@ function contextLabel() {
 // --- prompt cache ---
 // Claude Code re-runs the status line when a warm cache reaches expires_at, so
 // `warm` flips to Uncached on its own while the session sits idle.
+// prompt_cache is absent after a resume until the first response, but the
+// cache itself outlives the process, so each session's expires_at is kept in
+// CACHE_STATE ({ session_id: expires_at }) to bridge that gap.
+const CACHE_STATE = path.join(os.homedir(), ".claude", "statusline-cache.json");
+const CACHED = "\x1b[32mCached\x1b[0m";
+
+// Rewrites the whole file, dropping expired entries, so it never grows.
+function saveCacheExpiry(state, now, expires) {
+  const live = Object.entries(state).filter(
+    ([id, t]) => id !== sessionId && t > now
+  );
+  if (Number.isFinite(expires)) live.push([sessionId, expires]);
+  const tmp = `${CACHE_STATE}.${process.pid}`;
+  fs.writeFileSync(tmp, JSON.stringify(Object.fromEntries(live)));
+  fs.renameSync(tmp, CACHE_STATE);
+}
+
 function cacheLabel() {
+  const state = readJSON(CACHE_STATE);
+  const now = Date.now() / 1000;
   const warm = input?.prompt_cache?.warm;
-  if (warm == null) return "";
-  return warm ? "\x1b[32mCached\x1b[0m" : "\x1b[33mUncached\x1b[0m";
+  if (warm == null) return state[sessionId] > now ? CACHED : "";
+  const expires = warm ? toNumber(input.prompt_cache.expires_at) : NaN;
+  const known = Number.isFinite(expires) ? expires : undefined;
+  if (known !== state[sessionId]) saveCacheExpiry(state, now, expires);
+  return warm ? CACHED : "\x1b[33mUncached\x1b[0m";
 }
 
 // --- rate-limit labels (appear after first API response) ---

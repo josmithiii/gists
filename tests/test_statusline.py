@@ -1,8 +1,11 @@
 """Tests for claude-statusline: fields, omission of absent ones, and the path prefix."""
 
 import json
+import os
 import re
 import subprocess
+import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +14,9 @@ import pytest
 SCRIPT: Path = Path(__file__).parent.parent / "claude-statusline" / "statusline.js"
 WRAPPER: Path = SCRIPT.with_name("statusline-wrapper.js")
 ANSI: re.Pattern[str] = re.compile(r"\x1b\[[0-9;]*m")
+# Keeps statusline-cache.json out of the real ~/.claude.
+STATE_HOME: Path = Path(tempfile.mkdtemp())
+(STATE_HOME / ".claude").mkdir()
 
 CONTEXT: dict[str, Any] = {
     "context_window_size": 1_000_000,
@@ -24,6 +30,7 @@ def run_lines(payload: dict[str, Any]) -> list[str]:
     result = subprocess.run(
         ["node", str(SCRIPT)],
         input=json.dumps(payload),
+        env={**os.environ, "HOME": str(STATE_HOME)},
         capture_output=True,
         text=True,
         check=True,
@@ -188,3 +195,39 @@ def test_wrapper_shortens_through_root_symlink() -> None:
 @pytest.mark.skipif(not Path("/w").is_symlink(), reason="needs the /w symlink")
 def test_wrapper_prefers_root_symlink_over_home() -> None:
     assert wrapper_path(Path("/w").resolve()) == "/w"
+
+
+def test_cached_survives_resume_until_saved_expiry() -> None:
+    warm = {"warm": True, "expires_at": time.time() + 3600}
+    first_line({"session_id": "resumed", "prompt_cache": warm})
+    assert first_line({"session_id": "resumed"}).endswith("Cached")
+
+
+def test_resume_after_saved_expiry_shows_no_cache_label() -> None:
+    warm = {"warm": True, "expires_at": time.time() - 1}
+    first_line({"session_id": "expired", "prompt_cache": warm})
+    assert "ached" not in first_line({"session_id": "expired"})
+
+
+def test_saved_expiry_is_per_session() -> None:
+    warm = {"warm": True, "expires_at": time.time() + 3600}
+    first_line({"session_id": "one", "prompt_cache": warm})
+    assert "ached" not in first_line({"session_id": "two"})
+
+
+def test_cold_response_clears_saved_expiry() -> None:
+    warm = {"warm": True, "expires_at": time.time() + 3600}
+    first_line({"session_id": "cooled", "prompt_cache": warm})
+    assert first_line(
+        {"session_id": "cooled", "prompt_cache": {"warm": False}}
+    ).endswith("Uncached")
+    assert "ached" not in first_line({"session_id": "cooled"})
+
+
+def test_saving_prunes_expired_sessions() -> None:
+    state = STATE_HOME / ".claude" / "statusline-cache.json"
+    state.write_text(json.dumps({"stale": 1}))
+    warm = {"warm": True, "expires_at": time.time() + 3600}
+    first_line({"session_id": "fresh", "prompt_cache": warm})
+    saved = json.loads(state.read_text())
+    assert "stale" not in saved and "fresh" in saved
