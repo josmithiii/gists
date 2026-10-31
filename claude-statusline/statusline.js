@@ -5,17 +5,14 @@ const fs = require("fs");
 
 // --- input ---
 const input = readJSON(0); // stdin
-const sessionId = `\x1b[90m${String(input.session_id ?? "")}\x1b[0m`;
+const sessionId = String(input.session_id ?? "").trim();
+const sessionName = String(input.session_name ?? "").trim();
 const model = input.model || {};
 // Claude Code sends `effort: { level }` (low | medium | high | xhigh | max)
 // only for models that support effort levels; the block is absent otherwise.
 const effortLevel = String(input.effort?.level ?? "").trim();
 const effort = effortLevel ? ` \x1b[94m${effortLevel}\x1b[0m` : "";
 const name = `\x1b[95m${String(model.display_name ?? "").trim()}\x1b[0m${effort}`;
-
-// Printed (in red) wherever Claude Code omitted a field it normally supplies,
-// e.g. rate limits during a usage-service outage -- loud, not silent.
-const UNAVAILABLE = "\x1b[31m<unavailable>\x1b[0m";
 
 // --- helpers ---
 function readJSON(fd) {
@@ -25,6 +22,8 @@ function readJSON(fd) {
     return {};
   }
 }
+// Number(null) is 0, which would read as a real value; absent must stay NaN.
+const toNumber = (v) => (v == null ? NaN : Number(v));
 function color(p) {
   if (p >= 90) return "\x1b[31m"; // red
   if (p >= 70) return "\x1b[33m"; // yellow
@@ -43,10 +42,9 @@ function compact(n) {
   return comma(n);
 }
 
-function usedTotal(u) {
+function inputTotal(u) {
   return (
     (u?.input_tokens ?? 0) +
-    (u?.output_tokens ?? 0) +
     (u?.cache_read_input_tokens ?? 0) +
     (u?.cache_creation_input_tokens ?? 0)
   );
@@ -55,17 +53,22 @@ function usedTotal(u) {
 // --- context window ---
 // Claude Code supplies `context_window.current_usage` (the usage block of the
 // newest main-context API response) and `context_window_size` directly, so no
-// transcript walk is needed.  Reported as input + output + cache_read +
-// cache_creation, i.e. everything that occupied the window on the last turn.
+// transcript walk is needed.  Reported as input + cache_read + cache_creation,
+// the input-only formula behind Claude Code's own used_percentage, computed
+// here to keep the decimal place.
+// Every label below returns "" when Claude Code does not supply its field, so
+// the segment disappears along with its separator.
 function contextLabel() {
   const cw = input?.context_window;
   const size = Number(cw?.context_window_size);
-  if (!cw || !Number.isFinite(size) || size <= 0) {
-    return `context ${UNAVAILABLE}`;
-  }
-  const used = usedTotal(cw.current_usage);
+  if (!cw || !Number.isFinite(size) || size <= 0) return "";
+  const used = inputTotal(cw.current_usage);
   if (used === 0) {
-    return "\x1b[36mcontext usage starts after your first question.\x1b[0m";
+    // current_usage is also null after /compact until the next API call;
+    // prompt_cache tells the two apart, since it follows the first response.
+    return input?.prompt_cache
+      ? "\x1b[36mcontext updates after the next response.\x1b[0m"
+      : "\x1b[36mcontext usage starts after your first question.\x1b[0m";
   }
   const pct = Math.round((used * 1000) / size) / 10;
   return (
@@ -74,13 +77,22 @@ function contextLabel() {
   );
 }
 
-// --- rate-limit labels (Pro/Max; appear after first API response) ---
+// --- prompt cache ---
+// Claude Code re-runs the status line when a warm cache reaches expires_at, so
+// `warm` flips to Uncached on its own while the session sits idle.
+function cacheLabel() {
+  const warm = input?.prompt_cache?.warm;
+  if (warm == null) return "";
+  return warm ? "\x1b[32mCached\x1b[0m" : "\x1b[33mUncached\x1b[0m";
+}
+
+// --- rate-limit labels (appear after first API response) ---
 // Shows the percentage *remaining* (100 - used); color still tracks usage.
-// `required` windows print <unavailable> when missing; optional ones
-// (spend_limit, only for Claude apps gateway users) are simply omitted.
-function rateLimitLabel(window, label, sep, required) {
-  const p = Number(window?.used_percentage);
-  if (!Number.isFinite(p)) return required ? `${sep}${label} ${UNAVAILABLE}` : "";
+// Which windows exist depends on the plan: Ultra has no five_hour window, and
+// spend_limit is only for Claude apps gateway users.
+function rateLimitLabel(window, label) {
+  const p = toNumber(window?.used_percentage);
+  if (!Number.isFinite(p)) return "";
   const remaining = 100 - p;
   let suffix = "";
   const resetsAt = Number(window?.resets_at);
@@ -90,7 +102,7 @@ function rateLimitLabel(window, label, sep, required) {
       suffix = hrs >= 24 ? ` (${(hrs / 24).toFixed(1)}d)` : ` (${hrs.toFixed(1)}h)`;
     }
   }
-  return `${sep}${color(p)}${label} ${remaining.toFixed(0)}%${suffix}\x1b[0m`;
+  return `${color(p)}${label} ${remaining.toFixed(0)}%${suffix}\x1b[0m`;
 }
 
 // --- session cost ---
@@ -100,21 +112,44 @@ function rateLimitLabel(window, label, sep, required) {
 // subscription, so it reads as "what this session would cost at pay-as-you-go API
 // rates" -- i.e. the on-demand bill Max avoids. Shown in neutral cyan -- it is a
 // running total, not a percentage, so the usage color scale does not apply.
-function costLabel(sep) {
-  const c = Number(input?.cost?.total_cost_usd);
-  if (!Number.isFinite(c)) return `${sep}cost ${UNAVAILABLE}`;
-  return `${sep}\x1b[36m~$${c.toFixed(2)} if API\x1b[0m`;
+function costLabel() {
+  const c = toNumber(input?.cost?.total_cost_usd);
+  if (!Number.isFinite(c)) return "";
+  return `\x1b[36m~$${c.toFixed(2)} if API\x1b[0m`;
 }
 
+// "remaining: " belongs to whichever window comes first, so it is attached
+// only after the absent windows are dropped.
 function rateLimitLabels() {
   const rl = input?.rate_limits;
-  return (
-    rateLimitLabel(rl?.five_hour, "5h", " - remaining: ", true) +
-    rateLimitLabel(rl?.seven_day, "weekly", " | ", true) +
-    rateLimitLabel(rl?.spend_limit, "spend", " | ", false) +
-    costLabel(" | ")
-  );
+  const windows = [
+    rateLimitLabel(rl?.five_hour, "5h"),
+    rateLimitLabel(rl?.seven_day, "weekly"),
+    rateLimitLabel(rl?.spend_limit, "spend"),
+  ].filter(Boolean);
+  return windows.length ? `remaining: ${windows.join(" | ")}` : "";
+}
+
+function statusLine() {
+  const usage = [contextLabel(), cacheLabel(), rateLimitLabels()]
+    .filter(Boolean)
+    .join(" - ");
+  return [name, usage, costLabel()].filter(Boolean).join(" | ");
+}
+
+// --- session line ---
+// The PR number is skipped when the session name already carries it.
+function prLabel() {
+  const n = toNumber(input?.pr?.number);
+  if (!Number.isInteger(n)) return "";
+  if (new RegExp(`(^|\\D)${n}(\\D|$)`).test(sessionName)) return "";
+  return `\x1b[36m${input.pr.kind === "mr" ? `MR !${n}` : `PR #${n}`}\x1b[0m`;
+}
+
+function sessionLine() {
+  const id = sessionId ? `\x1b[90m${sessionId}\x1b[0m` : "";
+  return `session: ${[sessionName, prLabel(), id].filter(Boolean).join(" | ")}`;
 }
 
 // --- print ---
-console.log(`${name} | ${contextLabel()}${rateLimitLabels()}\nsession: ${sessionId}`);
+console.log(`${statusLine()}\n${sessionLine()}`);

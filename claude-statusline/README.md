@@ -2,18 +2,20 @@
 
 A custom status line for [Claude Code](https://claude.com/claude-code) that
 shows the model name and current effort level, percentage of the context
-window consumed (color-coded green/yellow/red), exact token counts, the
-*remaining* 5-hour-session and weekly rate-limit percentages with time until
-each window resets (Pro/Max plans), the API-equivalent session cost, the
-session ID, plus the familiar `user@host:dir (branch)` prefix.
+window consumed (color-coded green/yellow/red), exact token counts, whether
+the prompt cache is warm, the *remaining* rate-limit percentages with time until each window resets
+(whichever of the 5-hour and weekly windows your plan has), the API-equivalent
+session cost, a second line with the session name, PR number and session ID,
+plus the familiar `user@host:path (branch)` prefix.
 
 Example output:
 
 ```
-jos@laptop:myproj (main) Fable 5.1 high | context 31.9% - (318,911/1M) - remaining: 5h 62% (2.2h) | weekly 69% (5.3d) | ~$12.88 if API
+jos@laptop:~/myproj (main) Fable 5.1 high | context 31.9% - (318,911/1M) - Cached - remaining: 5h 62% (2.2h) | weekly 69% (5.3d) | ~$12.88 if API
+session: Fix the cache label | PR #123 | e4b7d145-4fc2-472c-b14e-d02eeeea3589
 ```
 
-Rendered (the `user@host:project (branch)` prefix comes from the wrapper;
+Rendered (the `user@host:path (branch)` prefix comes from the wrapper;
 everything from the model name onward is shown in the screenshot below):
 
 ![status line screenshot](https://raw.githubusercontent.com/josmithiii/gists/main/claude-statusline/statusline.png)
@@ -50,8 +52,11 @@ command on stdin (documented at
 <https://code.claude.com/docs/en/statusline.md>); no transcript parsing.
 
 - `statusline-wrapper.js` (a bash script despite the `.js` name -- Claude
-  Code only cares that it's executable) prepends `user@host:dir (branch)`
-  and then pipes the original stdin JSON into `statusline.js`.
+  Code only cares that it's executable) prepends `user@host:path (branch)`
+  and then pipes the original stdin JSON into `statusline.js`. The path is
+  the full directory, shortened through any symlink in `/` that points at
+  one of its parents (`/Users/jos/w/gists` shows as `/w/gists` when `/w` is
+  such a link), and then with `$HOME` as `~`.
 - The effort level after the model name (`Fable 5.1 high`) is the
   `effort.level` field -- one of `low`, `medium`, `high`, `xhigh`, `max`,
   tracking `/effort` live. The whole `effort` block is omitted for models
@@ -60,12 +65,16 @@ command on stdin (documented at
   effort level.
 - `context N% - (used/size)` comes from the `context_window` block:
   `current_usage` is the usage record of the newest main-context API
-  response, and the script reports
-  `input + output + cache_read + cache_creation` (everything that occupied
-  the window on the last turn) as a percentage of `context_window_size`.
+  response, and the script reports `input + cache_read + cache_creation` as
+  a percentage of `context_window_size`. That is the same input-only formula
+  as Claude Code's `used_percentage`, kept here for its decimal place.
   The size is shown compactly (`1M`, `200K`), so the script adapts to
   whichever model is active. Before the first response the segment reads
-  `context usage starts after your first question.`
+  `context usage starts after your first question.`, and just after
+  `/compact` it reads `context updates after the next response.`
+- `Cached` / `Uncached` is `prompt_cache.warm`: whether the cached prefix is
+  still within its TTL. Claude Code re-runs the status line when a warm cache
+  expires, so it flips to `Uncached` while the session is idle.
 - The `remaining: 5h N% (…h) | weekly N% (…d)` segments are read from the
   `rate_limits.five_hour` and `rate_limits.seven_day` blocks. Each shows the
   percentage *remaining* in that window (100 minus `used_percentage`)
@@ -83,13 +92,15 @@ command on stdin (documented at
   It is a client-side estimate and "may differ from your actual bill." Note
   that Claude Code exposes *no* remaining-credit balance to the status line;
   this session-cost estimate is the closest available signal.
-- **`<unavailable>`** (in red) is printed in place of any of the above values
-  that Claude Code failed to supply -- for example the rate-limit blocks
-  during a usage-service outage. A missing field is never silently dropped.
-  Note that the rate-limit fields are only ever sent to Claude.ai Pro/Max
-  subscribers (and only after the session's first API response), so on other
-  plans those two segments read `<unavailable>` permanently; delete them from
-  `rateLimitLabels()` if that bothers you.
+- The second line is `session_name`, then `pr.number` (`PR #123`, or
+  `MR !123` for a GitLab merge request) unless the name already contains that
+  number, then `session_id`.
+- **Any field Claude Code does not supply is omitted**, along with its
+  separator. Which rate-limit windows exist depends on the plan (Ultra has no
+  `5h` window, for example), they arrive only after the session's first API
+  response, and non-subscribers get none, so the line adapts rather than
+  flagging them. The tradeoff is that a usage-service outage also just makes
+  those segments disappear.
 
 ## Tweaks
 
@@ -98,9 +109,10 @@ command on stdin (documented at
   setting `effort` to `""` near the top of `statusline.js`.
 - Other fields Claude Code puts on stdin but this script ignores:
   `fast_mode`, `thinking.enabled`, `output_style.name`, `vim.mode`,
-  `agent.name`, `session_name`, `pr`, `worktree`, `prompt_cache`,
-  `context_window.used_percentage` (input tokens only, which is why the
-  script computes its own from `current_usage`).
+  `agent.name`, `worktree`, `workspace.repo`, `pr.review_state`,
+  `cost.total_lines_added`, `cost.total_lines_removed`,
+  `cost.total_duration_ms`, and the rest of `prompt_cache` (`hit_ratio`,
+  `expires_at`, `recache_tokens_if_cold`, `last_miss_cause`).
 - Drop the wrapper and point `statusLine.command` straight at
   `statusline.js` if you don't want the user/host/branch prefix.
 
